@@ -94,7 +94,6 @@ export async function POST(request) {
     name,
     captain,
     members: members || [],
-    invites: body.invites ?? [],
     created_at: new Date().toISOString(),
   };
   try {
