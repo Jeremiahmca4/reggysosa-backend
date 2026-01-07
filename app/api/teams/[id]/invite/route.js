@@ -1,8 +1,8 @@
-// API route for registering a team to a tournament.
+// API route for inviting a user to a team.
 //
-// POST /api/tournaments/:id/register -> registers a teamId to a tournament.
+// POST /api/teams/:id/invite -> append an email to the invites array for the team.
 //
-// Expects JSON body { teamId }. Returns ok:true on success.
+// Expects JSON body { email }. Returns ok:true with the updated team on success.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -13,6 +13,8 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+// Helper to construct a Supabase client using environment variables. Returns
+// null if credentials are missing or the URL is invalid.
 function createSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -54,34 +56,49 @@ export async function POST(request, { params }) {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });
   }
-  const { teamId } = body || {};
-  if (!teamId) {
-    return new Response(
-      JSON.stringify({ ok: false, bad_request: true }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+  const email = (body?.email || '').trim().toLowerCase();
+  if (!email) {
+    return new Response(JSON.stringify({ ok: false, bad_request: true }), {
+      status: 400,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
   }
-  // Insert a row into a join table (tournament_registrations). This table
-  // should have columns tournament_id and team_id. You must create it in
-  // Supabase ahead of time. If the table does not exist, an error will be
-  // returned.
   try {
-    const { error } = await supabase
-      .from('tournament_registrations')
-      .insert({ tournament_id: id, team_id: teamId });
-    if (error) {
+    // Fetch existing invites for this team
+    const { data: teamRow, error: fetchErr } = await supabase
+      .from('teams')
+      .select('invites')
+      .eq('id', id)
+      .single();
+    if (fetchErr) {
       return new Response(JSON.stringify({ ok: false, error: true }), {
         status: 500,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       });
     }
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 201,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-    });
+    let invites = Array.isArray(teamRow?.invites) ? teamRow.invites : [];
+    if (!invites.includes(email)) {
+      invites.push(email);
+    }
+    // Update the invites array on the team row
+    const { data: updated, error: updateErr } = await supabase
+      .from('teams')
+      .update({ invites })
+      .eq('id', id)
+      .select('*');
+    if (updateErr) {
+      return new Response(JSON.stringify({ ok: false, error: true }), {
+        status: 500,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+    return new Response(
+      JSON.stringify({ ok: true, team: updated?.[0] }),
+      {
+        status: 200,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      }
+    );
   } catch {
     return new Response(JSON.stringify({ ok: false, error: true }), {
       status: 500,

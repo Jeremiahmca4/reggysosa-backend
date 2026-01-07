@@ -19,7 +19,10 @@ export async function GET() {
   if (!url || !anonKey) {
     return new Response(JSON.stringify({ ok: false, missing_env: true }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
     });
   }
 
@@ -30,7 +33,10 @@ export async function GET() {
   } catch {
     return new Response(JSON.stringify({ ok: false, bad_url: true }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
     });
   }
 
@@ -47,20 +53,41 @@ export async function GET() {
       // Supabase responded successfully, so connectivity is confirmed.
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
       });
     }
     // Non‑200 response indicates something is wrong (e.g. bad key). Do not
     // expose sensitive details; simply mark the connection as failed.
     return new Response(JSON.stringify({ ok: false, unreachable: true }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
     });
   } catch {
     // Network error (DNS, fetch) – Supabase cannot be reached.
     return new Response(JSON.stringify({ ok: false, unreachable: true }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
     });
   }
+}
+
+// Handle CORS preflight requests
+export function OPTIONS() {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 }
