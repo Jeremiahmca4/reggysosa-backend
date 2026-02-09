@@ -8,7 +8,8 @@ import { createClient } from '@supabase/supabase-js';
 // Reuse CORS headers consistent with other API routes. Allow PATCH, GET and OPTIONS.
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,PATCH,OPTIONS',
+  // Allow DELETE in addition to GET, PATCH and OPTIONS for removing tournaments.
+  'Access-Control-Allow-Methods': 'GET,PATCH,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
@@ -27,6 +28,57 @@ function createSupabaseClient() {
 // Respond to CORS preflight requests.
 export function OPTIONS() {
   return new Response(null, { status: 200, headers: CORS_HEADERS });
+}
+
+// DELETE: remove a tournament and its registrations by id. Returns ok:true on success.
+export async function DELETE(request, { params }) {
+  const supabase = createSupabaseClient();
+  if (!supabase) {
+    return new Response(JSON.stringify({ ok: false, missing_env: true }), {
+      status: 500,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
+  const id = params?.id;
+  if (!id) {
+    return new Response(JSON.stringify({ ok: false, bad_request: true }), {
+      status: 400,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
+  try {
+    // First delete registrations for this tournament
+    const { error: regErr } = await supabase
+      .from('tournament_registrations')
+      .delete()
+      .eq('tournament_id', id);
+    if (regErr) {
+      return new Response(JSON.stringify({ ok: false, error: true }), {
+        status: 500,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+    // Then delete the tournament itself
+    const { error: delErr } = await supabase
+      .from('tournaments')
+      .delete()
+      .eq('id', id);
+    if (delErr) {
+      return new Response(JSON.stringify({ ok: false, error: true }), {
+        status: 500,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  } catch {
+    return new Response(JSON.stringify({ ok: false, error: true }), {
+      status: 500,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
 }
 
 // GET: return a single tournament by id. If not found, return 404.
