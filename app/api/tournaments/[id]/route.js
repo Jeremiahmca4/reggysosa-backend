@@ -157,6 +157,14 @@ export async function PATCH(request, { params }) {
   if ('startDate' in body) {
     updates.start_date = body.startDate || null;
   }
+  // Allow updating status if provided
+  if ('status' in body && typeof body.status === 'string' && body.status.trim()) {
+    updates.status = body.status.trim();
+  }
+  // Allow updating bracket if provided. Expect bracket to be JSON serialisable.
+  if ('bracket' in body) {
+    updates.bracket = body.bracket;
+  }
   if (Object.keys(updates).length === 0) {
     return new Response(JSON.stringify({ ok: false, bad_request: true }), {
       status: 400,
