@@ -165,10 +165,6 @@ export async function PATCH(request, { params }) {
   if ('bracket' in body) {
     updates.bracket = body.bracket;
   }
-  // Allow updating winner if provided.
-  if ('winner' in body) {
-    updates.winner = body.winner || null;
-  }
   if (Object.keys(updates).length === 0) {
     return new Response(JSON.stringify({ ok: false, bad_request: true }), {
       status: 400,
